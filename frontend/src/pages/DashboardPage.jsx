@@ -1,12 +1,21 @@
 import React, { useState } from 'react';
 import { Activity, AlertTriangle, Clock, Zap, Brain } from 'lucide-react';
-import { useAgents } from '../context/AgentContext';
-import { useSimulation } from '../context/SimulationContext';
 import AgentNetwork from '../components/AgentNetwork';
 
-export default function DashboardPage() {
-  const { agents, setSelectedAgent } = useAgents();
-  const { simulationLog } = useSimulation();
+export default function DashboardPage({ mcpData }) {
+  const [selectedAgent, setSelectedAgent] = useState(null);
+  const { agents, analytics, logs, loading, isConnected } = mcpData;
+
+  if (loading && agents.length === 0) {
+    return (
+      <div className="min-h-screen pt-20 bg-gradient-to-br from-gray-900 via-black to-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-gray-400">Loading MCP Agents...</p>
+        </div>
+      </div>
+    );
+  }
 
   const activeAgents = agents.filter(a => a.status === 'active').length;
   const failedAgents = agents.filter(a => a.status === 'failed').length;
@@ -21,8 +30,13 @@ export default function DashboardPage() {
             <Zap className="w-8 h-8 text-purple-400" />
             <h1 className="text-4xl font-bold text-white">Neural Network Monitor</h1>
             <Zap className="w-8 h-8 text-cyan-400" />
+            {isConnected && (
+              <span className="ml-4 px-3 py-1 bg-green-500/20 border border-green-500 rounded-full text-green-400 text-sm">
+                🟢 Live MCP Data
+              </span>
+            )}
           </div>
-          <p className="text-gray-400">Real-time visualization of the self-healing AI network</p>
+          <p className="text-gray-400">Real-time visualization of the self-healing MCP agent network</p>
         </div>
 
         {/* Stats Cards */}
@@ -40,7 +54,9 @@ export default function DashboardPage() {
               <Activity className="w-6 h-6 text-green-400" />
             </div>
             <div className="text-4xl font-bold text-white">{activeAgents}</div>
-            <div className="text-sm text-green-400 mt-1">100.0% operational</div>
+            <div className="text-sm text-green-400 mt-1">
+              {analytics ? `${analytics.uptime}%` : '100%'} operational
+            </div>
           </div>
           <div className="bg-gradient-to-br from-red-900/40 to-red-800/20 backdrop-blur border border-red-500/30 rounded-xl p-6">
             <div className="flex items-center justify-between mb-4">
@@ -48,15 +64,19 @@ export default function DashboardPage() {
               <AlertTriangle className="w-6 h-6 text-red-400" />
             </div>
             <div className="text-4xl font-bold text-white">{failedAgents} / {healingAgents}</div>
-            <div className="text-sm text-gray-400 mt-1">All systems stable</div>
+            <div className="text-sm text-gray-400 mt-1">
+              {failedAgents === 0 && healingAgents === 0 ? 'All systems stable' : 'Recovery in progress'}
+            </div>
           </div>
           <div className="bg-gradient-to-br from-blue-900/40 to-blue-800/20 backdrop-blur border border-blue-500/30 rounded-xl p-6">
             <div className="flex items-center justify-between mb-4">
-              <span className="text-gray-300">Last Recovery</span>
+              <span className="text-gray-300">Recovery Time</span>
               <Clock className="w-6 h-6 text-blue-400" />
             </div>
-            <div className="text-4xl font-bold text-white">-</div>
-            <div className="text-sm text-gray-400 mt-1">Average response time</div>
+            <div className="text-4xl font-bold text-white">
+              {analytics ? `${analytics.avgRecoveryTime}s` : '2.8s'}
+            </div>
+            <div className="text-sm text-gray-400 mt-1">Average response</div>
           </div>
         </div>
 
@@ -67,7 +87,7 @@ export default function DashboardPage() {
             <div className="p-6 border-b border-gray-800 flex items-center justify-between">
               <div className="flex items-center space-x-3">
                 <Brain className="w-6 h-6 text-purple-400" />
-                <h2 className="text-xl font-semibold text-white">Neural Dome</h2>
+                <h2 className="text-xl font-semibold text-white">MCP Agent Network</h2>
               </div>
               <div className="flex items-center space-x-2">
                 <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
@@ -89,17 +109,15 @@ export default function DashboardPage() {
                   <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
                   <span className="text-white text-sm">Healing</span>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                  <span className="text-white text-sm">Recovered</span>
-                </div>
               </div>
               <div className="absolute bottom-6 right-6 bg-gray-900/80 backdrop-blur rounded-lg p-3 border border-gray-700">
                 <div className="flex items-center space-x-2">
                   <Zap className="w-4 h-4 text-green-400" />
                   <span className="text-white text-sm">Network Health</span>
                 </div>
-                <div className="text-2xl font-bold text-green-400">100.0%</div>
+                <div className="text-2xl font-bold text-green-400">
+                  {analytics ? `${analytics.uptime}%` : '100%'}
+                </div>
               </div>
             </div>
           </div>
@@ -111,15 +129,15 @@ export default function DashboardPage() {
               <h2 className="text-xl font-semibold text-white">System Events</h2>
             </div>
             <div className="p-6 h-[500px] overflow-y-auto space-y-3">
-              {simulationLog.length === 0 ? (
+              {logs.length === 0 ? (
                 <div className="text-center text-gray-500 py-12">
                   <Activity className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                  <p>No simulations run yet</p>
-                  <p className="text-sm mt-2">NeuroWeave system initialized with {agents.length} agents</p>
-                  <p className="text-xs text-purple-400 mt-4">3:36:46 pm</p>
+                  <p>No events logged yet</p>
+                  <p className="text-sm mt-2">MCP system initialized with {agents.length} agents</p>
+                  <p className="text-xs text-purple-400 mt-4">{new Date().toLocaleTimeString()}</p>
                 </div>
               ) : (
-                simulationLog.map((log, i) => (
+                logs.slice().reverse().map((log, i) => (
                   <div key={i} className={`p-3 rounded-lg border ${
                     log.type === 'error' ? 'bg-red-900/20 border-red-500/30' :
                     log.type === 'warning' ? 'bg-yellow-900/20 border-yellow-500/30' :
